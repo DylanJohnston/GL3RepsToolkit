@@ -1,6 +1,6 @@
 # (README last updated: 4th Septemeber 2019)
 
-# A toolkit for the Representation Theory of GL3(Fp)  (README last updated: 4th Septemeber 2019)
+# A toolkit for the Representation Theory of GL3(Fp)
 
 This repository contains my python code for a GL3 Representation theory toolkit. 
 Within this toolkit you are able to (assuming this was accessed via my paper so terminology is established.):
