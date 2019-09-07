@@ -68,7 +68,7 @@ def s(a,b,c,t=1,v1=rand1,v2=rand2,v3=rand3): #this is the evaluation of the schu
     p = schur_num(a,b,c,v1,v2,v3,t)    
     q = schur_num(0,0,0,v1,v2,v3,t)
     return p/q
-
+    
 def upto(aa,p):  #this gives a max value 'up_to(i)' for each i=1,2,3 such that all the hyperplanes H_(i,n), n <= up_to(i) are left/south of the point aa for a prime p
     up_to1=0
     up_to2=0
@@ -124,7 +124,7 @@ def SLP(aa,p): #aa refers to the aa in W(aa) which you want to decompose. Note: 
             i=0
             bbS = [xx] #bb stands for points obtained in the beam-out south, xx is in there trivially (don't reflect).
             r1 = reflectH1(bbS[i],upto(bbS[i],p)[0],p)
-            if r1[0]+r1[1] + 2*r1[2] < 0: #when the refection goes too far down so it cant possibly produce more new terms in p-restricted region this cond. is true.
+            if r1[0] + r1[1] - 2*r1[2] < 0: #when the refection goes too far down so it cant possibly produce more new terms in p-restricted region this cond. is true.
                  break
             equal = 0 #resets it for each new r being tested
             for yy in possibleweights:                
@@ -143,7 +143,7 @@ def SLP(aa,p): #aa refers to the aa in W(aa) which you want to decompose. Note: 
             j=0 
             bbNW = [xx] #bb stands for points obtained in the NW beam-out
             r3 = reflectH3(bbNW[j],upto(bbNW[j],p)[2],p)
-            if r3[1]+r3[2]-2*r3[0] > 0: #cond when the refection goes too leftwards so it cant possibly produce more new terms in p-restricted region.
+            if 2*r1[0]-r1[1] - r1[2] < 0: #cond when the refection goes too leftwards so it cant possibly produce more new terms in p-restricted region.
                  break
             equal = 0 #resets it
             for yy in possibleweights: #compares r to every weight currently in 'possibleweights' to see if it's new.          
@@ -316,7 +316,20 @@ def LR_coeff_finder(LHS,RHS,bound):  #LHS is [aa,bb], RHS is list of possible te
     return "DIDNT WORK, DIDNT WORK, DIDNT WORK" #very bad news...
 
 
-def LittleRich(aa,bb): 
+def LittleRich(aa,bb):
+    #want to ensure all components of both weights passed is >=0, if not we'll add some (1,1,1)s and keep them in mind to subtract later
+    aa_twist = 0
+    bb_twist = 0
+    while aa[2] < 0:
+        aa_twist +=1
+        aa[0] +=1
+        aa[1] +=1
+        aa[2] +=1
+    while bb[2] < 0:
+        bb_twist +=1
+        bb[0] +=1
+        bb[1] +=1
+        bb[2] +=1
     sum_of_vals = aa[0]+aa[1]+aa[2]+bb[0]+bb[1]+bb[2]
     maxtop = aa[0] + bb[0]
     allWterms = []  #these will be all the W(a,b,c) reps with a,b,c<maxtop, a very weak restriction to start but it's something, filled with for loop right below.      
@@ -342,6 +355,11 @@ def LittleRich(aa,bb):
         if coeffs_with_0s[i] != 0:
             actualWterms.append(list(possWterms[i]))
             actualcoeffs.append(coeffs_with_0s[i])
+
+    for i in range(len(actualWterms)): #we want to subtract any twist we applied at the start
+        actualWterms[i][0] -= (aa_twist + bb_twist)
+        actualWterms[i][1] -= (aa_twist + bb_twist)
+        actualWterms[i][2] -= (aa_twist + bb_twist)
 
     if len(actualWterms) - len(actualcoeffs) != 0: #just a small check right at the end, this should ALWAYS BE ZERO, if not we have huge problems.
         return "Error: number of coeffs doesnt equal number of terms"
@@ -405,7 +423,7 @@ def option1(weight,prime):
     PossibleF = SLP(weight,prime) #returns list of possible weights, theres no coeffs for this yet and some could even be zero
     PostStein=[]
     for i in range(len(PossibleF)): #for each F in PossibleF we perform Steinbergs on it and add it to a new list.
-        PostStein.append(Steinberg(PossibleF[i],prime)) 
+        PostStein.append(Steinberg(PossibleF[i],prime))
 
     PostF_to_W=[]
     for i in range(len(PostStein)): #for every F in the PostStein nested list this changes it to combo of W terms, prepping for using schur polys to find coeffs
@@ -413,10 +431,9 @@ def option1(weight,prime):
         for j in range(len(PostStein[i])):
              hold_list.append(F_to_W(PostStein[i][j],prime))
         PostF_to_W.append(hold_list)
-
     #note, now PostF_to_W is now a triple nested list (quad technically: if you count the weights themselves as a list)
     Fcoeffs = SLP_coeff_finder(weight,PostF_to_W,prime) #returns the coeffs, could be zeros in here.
-
+    
     ans_coeffs =[] #the coeffs for the answer
     ans_Fterms =[] #the terms for the answer
     for i in range(len(Fcoeffs)):
@@ -452,9 +469,11 @@ def option2(weight,prime):
     return printline #returns string ready to print out.                       
 
 def option3(weight1,weight2):
+    weight1copy = weight1.copy()    #just incase weights get altered via twist.
+    weight2copy = weight2.copy()
     
-    LR = LittleRich(weight1,weight2)
-
+    LR = LittleRich(weight1copy,weight2copy)
+    
     #I kept getting a random "nonetype is not subscriptable" exception which would not re-appear upon retrying so this is the work around. It's in each option
     printline = ""
     try: 
@@ -819,13 +838,7 @@ def main():
             print("")
             print("-----------------------------------------------------------------------------------------------------------------------------------------")
             main()
-        if weight1[0] < 0 or weight1[1] < 0 or weight1[2]< 0 or weight2[0] < 0 or weight2[1] < 0 or weight2[2]< 0:
-            print("")
-            print("Invalid input, please ensure all entries are >= 0. Going back to menu.")
-            print("")
-            print("-----------------------------------------------------------------------------------------------------------------------------------------")
-            main()
-
+            
         ans = option3(weight1,weight2)
         print("")    
         print("**************")
