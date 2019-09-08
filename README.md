@@ -1,4 +1,4 @@
-# (README last updated: 4th Septemeber 2019)
+# (README last updated: 8th Septemeber 2019)
 
 # A toolkit for the Representation Theory of GL3(Fp)
 
