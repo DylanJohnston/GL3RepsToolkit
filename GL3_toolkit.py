@@ -2,6 +2,7 @@ import sys
 import itertools
 import random
 from math import floor
+import numpy as np
 
 #Details.
 
@@ -10,7 +11,7 @@ from math import floor
 #url =(none yet)
 #python required -> 3.6
 
-#last updated: 3/9/19 23:00
+#last updated: 8/9/19 
 
 #########################################################################################################
 #### TO USE: Just compile and you will be asked for inputs in the shell, no need to do anything here ####
@@ -124,7 +125,7 @@ def SLP(aa,p): #aa refers to the aa in W(aa) which you want to decompose. Note: 
             i=0
             bbS = [xx] #bb stands for points obtained in the beam-out south, xx is in there trivially (don't reflect).
             r1 = reflectH1(bbS[i],upto(bbS[i],p)[0],p)
-            if r1[0] + r1[1] - 2*r1[2] < 0: #when the refection goes too far down so it cant possibly produce more new terms in p-restricted region this cond. is true.
+            if r1[0]+r1[1] + 2*r1[2] < 0: #when the refection goes too far down so it cant possibly produce more new terms in p-restricted region this cond. is true.
                  break
             equal = 0 #resets it for each new r being tested
             for yy in possibleweights:                
@@ -143,7 +144,7 @@ def SLP(aa,p): #aa refers to the aa in W(aa) which you want to decompose. Note: 
             j=0 
             bbNW = [xx] #bb stands for points obtained in the NW beam-out
             r3 = reflectH3(bbNW[j],upto(bbNW[j],p)[2],p)
-            if 2*r1[0]-r1[1] - r1[2] < 0: #cond when the refection goes too leftwards so it cant possibly produce more new terms in p-restricted region.
+            if r3[1]+r3[2]-2*r3[0] > 0: #cond when the refection goes too leftwards so it cant possibly produce more new terms in p-restricted region.
                  break
             equal = 0 #resets it
             for yy in possibleweights: #compares r to every weight currently in 'possibleweights' to see if it's new.          
@@ -213,123 +214,110 @@ def coeff_checker(total, evals, coeffs): #total is s(a,b,c)(x,y,z) , evals is a 
     return False
         
 def SLP_coeff_finder(LHS,RHS,p):  #LHS is [a,b,c], RHS is list of W(weights) based on steinburgs and expressing Fs as Ws,p prime
-                    
-    max_value = int(W_dim(LHS)) #a very loose bound, moreso just so we have one to put into next part, we'll never come nere to hitting it.     
-    for k in range(max_value + 1): #increases the bound on the range on each entry, this means we dont check silly things like (0,0,...,200) before (1,1,...1)s
-        ranges = [] #empty it
-        for i in range(len(RHS)):  
-            if k <= max_value:
-                ranges.append(range(0,k))
-            else:
-                ranges.append(range(0,max_value))                   
-    
-        if k==1: #this is just xx = (0,0,..0) which obviously isnt correct (dim =0), so we'll use this chance to check (1,1,...1) early since it comes up so often
-                ranges =[] #empty it, it'll refill for k=2 anyway so no worries there
-                for i in range(len(RHS)):
-                    ranges.append(range(1,2)) #just fill it with ones.
-        for xx in itertools.product(*ranges):
-            successes = 0 #define a counter which resets for each xx
-            for t in range(len(RHS)): #we will check each set of coeffs at 'length(RHS)' sets of evals of the schur functions. Creating a nxn linear system (in general)
-                r1 = round(random.uniform(0.3,2),3)
-                r2 = 0
-                r3 = 0
-                while r2 == 0: #if the random numbers are not distinct it all breaks down since we divide by det above in our definition, so need to do this
-                    hold2 = round(random.uniform(0.3,2),3)
-                    if hold2 != r1:
-                        r2 = hold2
-                while r3 == 0:
-                    hold3 = round(random.uniform(0.3,2),3)
-                    if hold3 != r1 and hold3 != r2:
-                        r3 = hold3
-                LHSvalue = s(LHS[0],LHS[1],LHS[2],1,r1,r2,r3)
-                
-                ##the next two blocks deal with calculating RHS at the given random numbers
-                inner = [] ##this block subtracts the innermost lists together (this is to deal with any W - W terms that may have appeared from expressing Fs as Ws
-                for i in range(len(RHS)):
-                    holder_list=[] #initalise/reset the holder.
-                    for j in range(len(RHS[i])):
-                        power = p**(len(RHS[i]) -1 -j) #this determines if schu function gets evaluated at powers of p instead bc of algebraic rep
-                        subtraction = 0
-                        for k in range(len(RHS[i][j])):
-                            subtraction += (-1)**k*s(RHS[i][j][k][0],RHS[i][j][k][1],RHS[i][j][k][2],1,r1**power,r2**power,r3**power) #deals with fact it's algebraic reps
-                        holder_list.append(subtraction)
-                    inner.append(holder_list)
 
-                RHSvalues = [] ##this deals with the multiplication part of the nested lists, easy as all the work had to done above
-                for i in range(len(inner)):
-                    multi = 1
-                    for j in range(len(inner[i])):
-                        multi *= inner[i][j]
-                    RHSvalues.append(multi)
-                    
-                if coeff_checker(LHSvalue,RHSvalues,xx) == True: #if it works for the random set of values, add 1 to successes and go again.
-                    successes += 1
-                if coeff_checker(LHSvalue,RHSvalues,xx) == False: #if it doesnt work for a set of rand vals we can scrap the coeffs as they dont work, no need to keep checking.
-                    break
-            if successes == len(RHS): #if coeffs worked for every set of random numbers we tested it at then return those coeffs as the mostly certainly correct ones. 
-                return xx #returns a list of coeffs (ints). List has same length as RHS of course.
-    #It didnt work :( It must have been a one in a million round-off error so we'll try again"
-    return SLP_coeff_finder(LHS,RHS,p)
+    ans =[] #soon to be the final answer to be returned                
+    for N in range(10): #solve multiple len(RHS)xlen(RHS) lin systems to find coeffs, in theory one is enough but want to be safe against some weird rounding.
+        master_LHS_list =[] #this will be our 'b' in Ax=b
+        master_RHS_nested_list =[] #and this will be our 'A'
+        for z in range(len(RHS)): #we will check each set of coeffs at 'length(RHS)' sets of evals of the schur functions. Creating a nxn linear system (in general)
+            r1 = round(random.uniform(0.3,2),2)
+            r2 = 0
+            r3 = 0
+            while r2 == 0: #if the random numbers are not distinct it all breaks down since we divide by det above in our definition, so need to do this
+                hold2 = round(random.uniform(0.3,2),2)
+                if hold2 != r1:
+                    r2 = hold2
+            while r3 == 0:
+                hold3 = round(random.uniform(0.3,2),2)
+                if hold3 != r1 and hold3 != r2:
+                    r3 = hold3
+            LHSvalue = s(LHS[0],LHS[1],LHS[2],1,r1,r2,r3)
 
-def LR_coeff_finder(LHS,RHS,bound):  #LHS is [aa,bb], RHS is list of possible terms (list of lists), bound is just the bound on the coeffs found by Weyl-dim
-    #this function is super similar to above, unfortunately it differs slightly so I found it easier to make two rather than create a bunch of methods etc...
-    max_bound = 0 #this is the highest value in the list 'bound' which was passed
-    for i in range(len(bound)):
-        if bound[i] >= max_bound:
-            max_bound = bound[i]
-                
-    for k in range(max_bound+1): #+1 to get around pythons counting
-        ranges = [] #empty it
-        for i in range(len(bound)): #increases the bound on the range on each entry, this means we dont check silly things like (0,0,...,200) 
-            if k <= bound[i]:
-                ranges.append(range(0,k+1))
-            else:
-                ranges.append(range(0,bound[i]+1)) #+1 for python counting, spent about an hour trying to debug this...
+            ##the next two blocks deal with calculating RHS at the given random numbers
+            inner = [] ##this block subtracts the innermost lists together (this is to deal with any W - W terms that may have appeared from expressing Fs as Ws
+            for i in range(len(RHS)):
+                holder_list=[] #initalise/reset the holder.
+                for j in range(len(RHS[i])):
+                    power = p**(len(RHS[i]) -1 -j) #this determines if schu function gets evaluated at powers of p instead bc of algebraic rep
+                    subtraction = 0
+                    for k in range(len(RHS[i][j])):
+                        subtraction += (-1)**k*s(RHS[i][j][k][0],RHS[i][j][k][1],RHS[i][j][k][2],1,r1**power,r2**power,r3**power) #deals with fact it's algebraic reps
+                    holder_list.append(subtraction)
+                inner.append(holder_list)
+
+            RHSvalues = [] ##this deals with the multiplication part of the nested lists, easy as all the work had to done above
+            for i in range(len(inner)):
+                multi = 1
+                for j in range(len(inner[i])):
+                    multi *= inner[i][j]
+                RHSvalues.append(multi)
+            master_LHS_list.append(LHSvalue)
+            master_RHS_nested_list.append(RHSvalues)
+
+        A=np.array(master_RHS_nested_list)
+        b =np.array(master_LHS_list)
+        try:
+            x = np.linalg.solve(A, b).tolist()
+            for i in range(len(x)):
+                x[i] = round(x[i])
+        except:
+            return SLP_coeff_finder(LHS,RHS,p)
         
-        for xx in itertools.product(*ranges): #test every xx in our list ranges that the "for i" loop just created for us
-            successes = 0 #define a counter which resets for each xx
-            for t in range(len(RHS)): #we will check each set of coeffs at 'length(RHS)' sets of evals of the schur functions. Creating a nxn linear system (in general)
-                r1 = round(random.uniform(0.3,2),3)
-                r2 = 0
-                r3 = 0
-                while r2 == 0: #if the random numbers are not distinct it all breaks down since we divide by det above in our definition, so need to do this
-                    hold2 = round(random.uniform(0.3,2),3)
-                    if hold2 != r1:
-                        r2 = hold2
-                while r3 == 0:
-                    hold3 = round(random.uniform(0.3,2),3)
-                    if hold3 != r1 and hold3 != r2:
-                        r3 = hold3
-                        
-                product = 1 #this will be our varaible for the value of s(aa).s(bb) at above values. It resets at each iterate.
-                valuelist = [] #this will a list of the evaluations of the schur polynomials of our possible terms evaluated at random values above. Resets each iterate.
-                for i in range(len(LHS)):
-                    product *= s(LHS[i][0],LHS[i][1],LHS[i][2],1,r1,r2,r3)
-                for j in range(len(RHS)):
-                    valuelist.append(s(RHS[j][0],RHS[j][1],RHS[j][2],1,r1,r2,r3))
-                if coeff_checker(product,valuelist,xx) == True: #if it works for the random set of values, add 1 to successes and go again.
-                    successes += 1
-                if coeff_checker(product,valuelist,xx) == False: #if it doesnt work for a set of rand vals we can scrap the coeffs as they dont work, no need to keep checking.
-                    break
-            if successes == len(RHS): #if coeffs worked for every set of random numbers we tested it at, that is length(RHS) of them then return those coeffs.
-                return xx
-    return "DIDNT WORK, DIDNT WORK, DIDNT WORK" #very bad news...
+        if N == 0:
+            ans = x #if ans hasn't been set yet just set it to be x
+        else:
+            if x != ans: #if x and ans (which is previous solution to nxn linear system arent equal (were in trouble)
+                return(LHS,RHS) #just try again
+            
+    return ans #if we get through all that we're (I'm) happy enough to return this as the answer 
+    
+        
+def LR_coeff_finder(LHS,RHS):  #LHS is [aa,bb], RHS is list of possible terms (list of lists), bound is just the bound on the coeffs found by Weyl-dim
+    #this function is super similar to above, unfortunately it differs slightly so I found it easier to make two rather than create a bunch of methods etc...
+    ans =[]
+   
+    for N in range(10): #solves a len(RHS)xlen(RHS) system multiple times to ensure same answer everytime, once would be enough in theory but its safety against some weird rounding
+        master_LHS_list =[] #this will be our 'b' in Ax=b
+        master_RHS_nested_list =[] #and this will be our 'A'
+        for z in range(len(RHS)): #we will check each set of coeffs at 'length(RHS)' sets of evals of the schur functions. Creating a nxn linear system (in general)
+            r1 = round(random.uniform(0.3,2.5),2)
+            r2 = 0
+            r3 = 0
+            while r2 == 0: #if the random numbers are not distinct it all breaks down since we divide by det above in our definition, so need to do this
+                hold2 = round(random.uniform(0.3,2.5),2)
+                if hold2 != r1:
+                    r2 = hold2
+            while r3 == 0:
+                hold3 = round(random.uniform(0.3,2.5),2)
+                if hold3 != r1 and hold3 != r2:
+                    r3 = hold3
+            LHSvalue = s(LHS[0][0],LHS[0][1],LHS[0][2],1,r1,r2,r3)*s(LHS[1][0],LHS[1][1],LHS[1][2],1,r1,r2,r3)
+
+            RHSvalues = [] ##this deals with the multiplication part of the nested lists, easy as all the work had to done above
+            for i in range(len(RHS)):
+                RHSvalues.append(s(RHS[i][0],RHS[i][1],RHS[i][2],1,r1,r2,r3))
+
+            master_LHS_list.append(LHSvalue)
+            master_RHS_nested_list.append(RHSvalues)
+
+        A=np.array(master_RHS_nested_list)
+        b =np.array(master_LHS_list)
+        try:
+            x = np.linalg.solve(A, b).tolist()
+            for i in range(len(x)):
+                x[i] = round(x[i])
+        except:
+            return(LHS,RHS) #we got veerrryy unlucky and generated a linearly dependent row, so just go again.
+
+        if N == 0:
+            ans = x #if ans hasn't been set yet
+        else:
+            if x != ans: #if x and ans (which is previous solution to nxn linear system arent equal (were in trouble)
+                return(LHS,RHS) #just try again
+    return ans #if we get through all that we're (I'm) happy enough to return this as the answer 
 
 
-def LittleRich(aa,bb):
-    #want to ensure all components of both weights passed is >=0, if not we'll add some (1,1,1)s and keep them in mind to subtract later
-    aa_twist = 0
-    bb_twist = 0
-    while aa[2] < 0:
-        aa_twist +=1
-        aa[0] +=1
-        aa[1] +=1
-        aa[2] +=1
-    while bb[2] < 0:
-        bb_twist +=1
-        bb[0] +=1
-        bb[1] +=1
-        bb[2] +=1
+def LittleRich(aa,bb): 
     sum_of_vals = aa[0]+aa[1]+aa[2]+bb[0]+bb[1]+bb[2]
     maxtop = aa[0] + bb[0]
     allWterms = []  #these will be all the W(a,b,c) reps with a,b,c<maxtop, a very weak restriction to start but it's something, filled with for loop right below.      
@@ -348,18 +336,13 @@ def LittleRich(aa,bb):
     
     #coeff_finder above finds the coeffs and ensures they are correct by testing potential correct ones at multiple points, creating a 'nxn linear system' (well 99.99% of the time)
     coeffs_with_0s = []
-    coeffs_with_0s = LR_coeff_finder([aa,bb],possWterms,coeff_bound) #this is a list that most likely has 0s in it. We'll remove them now.
+    coeffs_with_0s = LR_coeff_finder([aa,bb],possWterms) #this is a list that most likely has 0s in it. We'll remove them now.
     actualWterms =[]
     actualcoeffs = []
     for i in range(len(coeffs_with_0s)): #removes terms with coeff zero, they dont appear in the expansion.
         if coeffs_with_0s[i] != 0:
             actualWterms.append(list(possWterms[i]))
             actualcoeffs.append(coeffs_with_0s[i])
-
-    for i in range(len(actualWterms)): #we want to subtract any twist we applied at the start
-        actualWterms[i][0] -= (aa_twist + bb_twist)
-        actualWterms[i][1] -= (aa_twist + bb_twist)
-        actualWterms[i][2] -= (aa_twist + bb_twist)
 
     if len(actualWterms) - len(actualcoeffs) != 0: #just a small check right at the end, this should ALWAYS BE ZERO, if not we have huge problems.
         return "Error: number of coeffs doesnt equal number of terms"
@@ -423,7 +406,7 @@ def option1(weight,prime):
     PossibleF = SLP(weight,prime) #returns list of possible weights, theres no coeffs for this yet and some could even be zero
     PostStein=[]
     for i in range(len(PossibleF)): #for each F in PossibleF we perform Steinbergs on it and add it to a new list.
-        PostStein.append(Steinberg(PossibleF[i],prime))
+        PostStein.append(Steinberg(PossibleF[i],prime)) 
 
     PostF_to_W=[]
     for i in range(len(PostStein)): #for every F in the PostStein nested list this changes it to combo of W terms, prepping for using schur polys to find coeffs
@@ -431,9 +414,10 @@ def option1(weight,prime):
         for j in range(len(PostStein[i])):
              hold_list.append(F_to_W(PostStein[i][j],prime))
         PostF_to_W.append(hold_list)
+
     #note, now PostF_to_W is now a triple nested list (quad technically: if you count the weights themselves as a list)
     Fcoeffs = SLP_coeff_finder(weight,PostF_to_W,prime) #returns the coeffs, could be zeros in here.
-    
+
     ans_coeffs =[] #the coeffs for the answer
     ans_Fterms =[] #the terms for the answer
     for i in range(len(Fcoeffs)):
@@ -469,11 +453,9 @@ def option2(weight,prime):
     return printline #returns string ready to print out.                       
 
 def option3(weight1,weight2):
-    weight1copy = weight1.copy()    #just incase weights get altered via twist.
-    weight2copy = weight2.copy()
     
-    LR = LittleRich(weight1copy,weight2copy)
-    
+    LR = LittleRich(weight1,weight2)
+
     #I kept getting a random "nonetype is not subscriptable" exception which would not re-appear upon retrying so this is the work around. It's in each option
     printline = ""
     try: 
@@ -838,7 +820,13 @@ def main():
             print("")
             print("-----------------------------------------------------------------------------------------------------------------------------------------")
             main()
-            
+        if weight1[0] < 0 or weight1[1] < 0 or weight1[2]< 0 or weight2[0] < 0 or weight2[1] < 0 or weight2[2]< 0:
+            print("")
+            print("Invalid input, please ensure all entries are >= 0. Going back to menu.")
+            print("")
+            print("-----------------------------------------------------------------------------------------------------------------------------------------")
+            main()
+
         ans = option3(weight1,weight2)
         print("")    
         print("**************")
