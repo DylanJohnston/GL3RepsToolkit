@@ -7,9 +7,10 @@ import numpy as np
 #Details.
 
 #author = Dylan Johnston
-#description = "GL3(F_p) Representations Toolkit (incls littlewood-richardson, decomp into irreps (in groth group), Steinberg's theorem"
-#url =(none yet)
-#python required -> 3.6
+#email: dpj42(at)hotmail(dot)com or dylan(dot)johnston(at)durham(dot)ac(dot)uk. Email me on either (or send to both to be sure) with any issues. 
+#description = "GL3(F_p) Representations Toolkit (incls littlewood-richardson, decomp into irreps (in groth group), Steinberg's theorem and more"
+#url =https://github.com/DylanJohnston/GL3RepsToolkit
+#version I used -> 3.6.2 
 
 #last updated: 8/9/19 
 
@@ -318,6 +319,20 @@ def LR_coeff_finder(LHS,RHS):  #LHS is [aa,bb], RHS is list of possible terms (l
 
 
 def LittleRich(aa,bb): 
+    #want to ensure all components of both weights passed is >=0, if not we'll add some (1,1,1)s and keep them in mind to subtract later
+    aa_twist = 0
+    bb_twist = 0
+    while aa[2] < 0:
+        aa_twist +=1
+        aa[0] +=1
+        aa[1] +=1
+        aa[2] +=1
+    while bb[2] < 0:
+        bb_twist +=1
+        bb[0] +=1
+        bb[1] +=1
+        bb[2] +=1
+
     sum_of_vals = aa[0]+aa[1]+aa[2]+bb[0]+bb[1]+bb[2]
     maxtop = aa[0] + bb[0]
     allWterms = []  #these will be all the W(a,b,c) reps with a,b,c<maxtop, a very weak restriction to start but it's something, filled with for loop right below.      
@@ -343,6 +358,11 @@ def LittleRich(aa,bb):
         if coeffs_with_0s[i] != 0:
             actualWterms.append(list(possWterms[i]))
             actualcoeffs.append(coeffs_with_0s[i])
+
+    for i in range(len(actualWterms)): #we want to subtract any twist we applied at the start
+        actualWterms[i][0] -= (aa_twist + bb_twist)
+        actualWterms[i][1] -= (aa_twist + bb_twist)
+        actualWterms[i][2] -= (aa_twist + bb_twist)
 
     if len(actualWterms) - len(actualcoeffs) != 0: #just a small check right at the end, this should ALWAYS BE ZERO, if not we have huge problems.
         return "Error: number of coeffs doesnt equal number of terms"
@@ -454,7 +474,10 @@ def option2(weight,prime):
 
 def option3(weight1,weight2):
     
-    LR = LittleRich(weight1,weight2)
+    weight1copy = weight1.copy()    #just incase weights get altered via twist.
+    weight2copy = weight2.copy()
+    
+    LR = LittleRich(weight1copy,weight2copy)
 
     #I kept getting a random "nonetype is not subscriptable" exception which would not re-appear upon retrying so this is the work around. It's in each option
     printline = ""
@@ -817,12 +840,6 @@ def main():
         if weight1[0] < weight1[1] or weight1[1]<weight1[2] or weight2[0] < weight2[1] or weight2[1]<weight2[2]:
             print("")
             print("You have entered a weight which isn't in the dominant region. Going back to menu.")
-            print("")
-            print("-----------------------------------------------------------------------------------------------------------------------------------------")
-            main()
-        if weight1[0] < 0 or weight1[1] < 0 or weight1[2]< 0 or weight2[0] < 0 or weight2[1] < 0 or weight2[2]< 0:
-            print("")
-            print("Invalid input, please ensure all entries are >= 0. Going back to menu.")
             print("")
             print("-----------------------------------------------------------------------------------------------------------------------------------------")
             main()
