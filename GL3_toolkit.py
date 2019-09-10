@@ -70,7 +70,7 @@ def s(a,b,c,t=1,v1=rand1,v2=rand2,v3=rand3): #this is the evaluation of the schu
     p = schur_num(a,b,c,v1,v2,v3,t)    
     q = schur_num(0,0,0,v1,v2,v3,t)
     return p/q
-    
+
 def upto(aa,p):  #this gives a max value 'up_to(i)' for each i=1,2,3 such that all the hyperplanes H_(i,n), n <= up_to(i) are left/south of the point aa for a prime p
     up_to1=0
     up_to2=0
@@ -257,18 +257,22 @@ def SLP_coeff_finder(LHS,RHS,p):  #LHS is [a,b,c], RHS is list of W(weights) bas
 
         A=np.array(master_RHS_nested_list)
         b =np.array(master_LHS_list)
-        try:
-            x = np.linalg.solve(A, b).tolist()
-            for i in range(len(x)):
-                x[i] = round(x[i])
+        try:            
+            u,d,v = np.linalg.svd(A)
+            c = np.dot(u.T,b)
+            w = np.linalg.solve(np.diag(d),c)
+            x = np.dot(v.T,w)
+            x = [int(round(i)) for i in x]
         except:
             return SLP_coeff_finder(LHS,RHS,p)
-        
+        for i in range(len(x)): #if coeffs are negative it's defo not right (the solver isn't perfect :( ) 
+            if x[i] < 0:
+                return SLP_coeff_finder(LHS,RHS,p)            
         if N == 0:
             ans = x #if ans hasn't been set yet just set it to be x
         else:
             if x != ans: #if x and ans (which is previous solution to nxn linear system arent equal (were in trouble)
-                return(LHS,RHS) #just try again
+                return SLP_coeff_finder(LHS,RHS,p) #just try again
             
     return ans #if we get through all that we're (I'm) happy enough to return this as the answer 
     
@@ -277,19 +281,19 @@ def LR_coeff_finder(LHS,RHS):  #LHS is [aa,bb], RHS is list of possible terms (l
     #this function is super similar to above, unfortunately it differs slightly so I found it easier to make two rather than create a bunch of methods etc...
     ans =[]
    
-    for N in range(10): #solves a len(RHS)xlen(RHS) system multiple times to ensure same answer everytime, once would be enough in theory but its safety against some weird rounding
+    for N in range(5): #solves a len(RHS)xlen(RHS) system multiple times to ensure same answer everytime, once would be enough in theory but its safety against some weird rounding
         master_LHS_list =[] #this will be our 'b' in Ax=b
         master_RHS_nested_list =[] #and this will be our 'A'
         for z in range(len(RHS)): #we will check each set of coeffs at 'length(RHS)' sets of evals of the schur functions. Creating a nxn linear system (in general)
-            r1 = round(random.uniform(0.3,2.5),2)
+            r1 = round(random.uniform(1,5),0)
             r2 = 0
             r3 = 0
             while r2 == 0: #if the random numbers are not distinct it all breaks down since we divide by det above in our definition, so need to do this
-                hold2 = round(random.uniform(0.3,2.5),2)
+                hold2 = round(random.uniform(5,10),0)
                 if hold2 != r1:
                     r2 = hold2
             while r3 == 0:
-                hold3 = round(random.uniform(0.3,2.5),2)
+                hold3 = round(random.uniform(10,15),0)
                 if hold3 != r1 and hold3 != r2:
                     r3 = hold3
             LHSvalue = s(LHS[0][0],LHS[0][1],LHS[0][2],1,r1,r2,r3)*s(LHS[1][0],LHS[1][1],LHS[1][2],1,r1,r2,r3)
@@ -300,21 +304,26 @@ def LR_coeff_finder(LHS,RHS):  #LHS is [aa,bb], RHS is list of possible terms (l
 
             master_LHS_list.append(LHSvalue)
             master_RHS_nested_list.append(RHSvalues)
-
+            
         A=np.array(master_RHS_nested_list)
         b =np.array(master_LHS_list)
         try:
-            x = np.linalg.solve(A, b).tolist()
-            for i in range(len(x)):
-                x[i] = round(x[i])
+            u,d,v = np.linalg.svd(A)
+            c = np.dot(u.T,b)
+            w = np.linalg.solve(np.diag(d),c)
+            x = np.dot(v.T,w)
+            x = [int(round(i)) for i in x]
+            
         except:
-            return(LHS,RHS) #we got veerrryy unlucky and generated a linearly dependent row, so just go again.
-
+            return LR_coeff_finder(LHS,RHS) #we got veerrryy unlucky and generated a linearly dependent row, so just go again.
+        for i in range(len(x)): #if coeffs are negative it's defo not right (the solver isn't perfect :( ) 
+            if x[i] < 0:
+                return LR_coeff_finder(LHS,RHS)
         if N == 0:
-            ans = x #if ans hasn't been set yet
+            ans = x #if ans hasn't been set yet 
         else:
             if x != ans: #if x and ans (which is previous solution to nxn linear system arent equal (were in trouble)
-                return(LHS,RHS) #just try again
+                return LR_coeff_finder(LHS,RHS) #just try again
     return ans #if we get through all that we're (I'm) happy enough to return this as the answer 
 
 
@@ -545,7 +554,7 @@ def option4(weight,prime,raw=0): ##option 4 is laid out differently to allow for
                     expansion.append([good_Fterms[i][0][j],good_Fterms[i][1][k]]) #same as above, i need to manually add an extra [ ] 
                     expansion_coeffs.append(good_coeffs[i]*(-1)**(j+k)) #same idea as above, this time the j+k brings into play the minus signs.
         if len(good_Fterms[i]) > 2:
-            print("shouldnt be in here as this would imply 3 tensor decomp which I havent coded for. Running will cease. (im bad!)")
+            print("shouldnt be in here as this would imply 3 tensor decomp which I havent coded for. Running will cease.")
             sys.exit()
   
     #now we have two new lists, expansion which looks like [ [weight,weight],[weight,weight],[weight],...] and expansion_coeffs which is just a list of coeffs.
