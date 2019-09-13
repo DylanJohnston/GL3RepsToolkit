@@ -7,12 +7,13 @@ import numpy as np
 #Details.
 
 #author = Dylan Johnston
-#email: dpj42(at)hotmail(dot)com or dylan(dot)johnston(at)durham(dot)ac(dot)uk. Email me on either (or send to both to be sure) with any issues. 
-#description = "GL3(F_p) Representations Toolkit (incls littlewood-richardson, decomp into irreps (in groth group), Steinberg's theorem and more"
-#url =https://github.com/DylanJohnston/GL3RepsToolkit
+#email: dpj42(at)hotmail(dot)com or dylan(dot)johnston(at)durham(dot)ac(dot)uk. 
+#description = A toolkit for the representations of GL3(F_p)
+              #it includes Littlewood-Richardson, decomp into irreps (in groth group), Steinberg's theorem and more!
+#URL =https://github.com/DylanJohnston/GL3RepsToolkit
 #version I used -> 3.6.2 
 
-#last updated: 8/9/19 
+#last updated: 12/9/19 
 
 #########################################################################################################
 #### TO USE: Just compile and you will be asked for inputs in the shell, no need to do anything here ####
@@ -56,7 +57,7 @@ def reflectH3(aa,n,p):  #reflects weight in hyperplane H_(3,n) for prime p
 def W_dim(aa): #Weyl dimension formula for W(a,b,c)
     return 1/2*(aa[0]-aa[1]+1)*(aa[1]-aa[2]+1)*(aa[0]-aa[2]+2)
 
-def det(M =[]):
+def det(M =[]): #determinant of a 3x3 matrix, passed as a 9 element list
     return M[0]*(M[4]*M[8]-M[5]*M[7]) - M[1]*(M[3]*M[8]-M[5]*M[6]) + M[2]*(M[3]*M[7]-M[4]*M[6])
 
 def schur_num(a,b,c,x,y,z,s=1): #numerator formula for schur poly (get denom formula by setting a=b=c=0). This comes from Jacobi's bialternant formula.
@@ -109,7 +110,7 @@ def F_to_W(ff,p): ##ff is our weight (a,b,c) belonging to F(a,b,c), p is our pri
         else: #(a,b,c) must be in upper alcove.
             ans.append(reflectH2(ff,1,p)) #we must add the reflection to ans, REMEMBER this has a minus in front of it when printing/doing calcs.
             
-    return ans #ans returned as a list of weights
+    return ans #answer returned as a list of weights
     
 
 def SLP(aa,p): #aa refers to the aa in W(aa) which you want to decompose. Note: This works for W in p-res.
